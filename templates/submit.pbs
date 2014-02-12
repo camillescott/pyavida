@@ -1,0 +1,11 @@
+#!/bin/sh -login
+
+#PBS -l {% resources %}
+#PBS -j oe
+#PBS -N {% jobname %}
+#PBS -A {% buyin %}
+
+cd {% folder %}
+
+./avida -s {% seed %}
+
