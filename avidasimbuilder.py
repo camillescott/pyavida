@@ -27,7 +27,7 @@ def mk_folders(out_dir, prefix, x):
     for i in xrange(x):
         p = os.path.join(out_dir, '{p}_{i}'.format(p=prefix, i=i)) 
         try:
-            os.mkdir(p)
+            os.makedirs(p)
         except OSError as e:
             print >>sys.stderr, e, 'folder already exists', p
             folders.append(p)
@@ -87,7 +87,7 @@ def main():
     try:    
         chkconfig(CONFIG_FILES)
     except FileMissingError as e:
-        print >>sys.stderr, '**ERR: missing config file {e}'.format(e)
+        print >>sys.stderr, '**ERR: missing config file {e}'.format(e=e.fn)
         print >>sys.stderr, 'Exiting...'
         sys.exit()
     print >>sys.stderr, 'Config file check passed!'
