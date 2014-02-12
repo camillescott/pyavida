@@ -6,7 +6,6 @@ import random
 
 from config import *
 
-
 def build_scripts(folders, args, jenv):
     t = jenv.get_template('submit.pbs')
     analyze = not args.analyze
@@ -47,7 +46,6 @@ def main():
     args = parser.parse_args()
 
     folders = args.folderlist.readline().strip().split('\t')
-    
     jenv = Environment(loader=PackageLoader('avidarunlauncher', '../templates'))
 
     print >>sys.stderr, 'building job scripts from templates...'
