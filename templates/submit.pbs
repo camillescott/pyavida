@@ -3,7 +3,9 @@
 #PBS -l {{ resources }}
 #PBS -j oe
 #PBS -N {{ jobname }}
+{% if buyin %}
 #PBS -A {{ buyin }}
+{% endif %}
 
 cd {{ folder }}
 

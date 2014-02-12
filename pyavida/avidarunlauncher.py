@@ -9,7 +9,7 @@ from config import *
 def build_scripts(folders, args, jenv):
     t = jenv.get_template('submit.pbs')
     analyze = not args.analyze
-    scripts = [t.render(folder=os.path.abspath(folder), buy=args.buyin,
+    scripts = [t.render(folder=os.path.abspath(folder), buyin=args.buyin,
                         resources=args.resources, analyze=analyze,
                         jobname=args.job_prefix+os.path.basename(folder),
                         seed=random.randint(0,9999999999999999999)) \
