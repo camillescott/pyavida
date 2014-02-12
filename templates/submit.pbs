@@ -1,11 +1,13 @@
 #!/bin/sh -login
 
-#PBS -l {% resources %}
+#PBS -l {{ resources }}
 #PBS -j oe
-#PBS -N {% jobname %}
-#PBS -A {% buyin %}
+#PBS -N {{ jobname }}
+#PBS -A {{ buyin }}
 
-cd {% folder %}
+cd {{ folder }}
 
-./avida -s {% seed %}
-
+./avida -s {{ seed }}
+{% if analyze %}
+./avida -a
+{% endif %}

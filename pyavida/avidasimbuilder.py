@@ -25,7 +25,7 @@ def chkconfig(d):
 def mk_folders(out_dir, prefix, x):
     folders = []
     for i in xrange(x):
-        p = os.path.join(out_dir, '{p}_{i}'.format(p=prefix, i=i)) 
+        p = os.path.join(os.path.abspath(out_dir), '{p}_{i}'.format(p=prefix, i=i)) 
         try:
             os.makedirs(p)
         except OSError as e:

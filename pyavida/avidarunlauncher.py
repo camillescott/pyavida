@@ -1,14 +1,18 @@
-import jinja2
+from jinja2 import Environment, PackageLoader
 import argparse
 import subprocess
+import sys
+import random
+
 from config import *
+
 
 def build_scripts(folders, args, jenv):
     t = jenv.get_template('submit.pbs')
-    
+    analyze = not args.analyze
     scripts = [t.render(folder=os.path.abspath(folder), buy=args.buyin,
-                        resources=args.resources, 
-                        jobname=args.job_prefix+folder,
+                        resources=args.resources, analyze=analyze,
+                        jobname=args.job_prefix+os.path.basename(folder),
                         seed=random.randint(0,9999999999999999999)) \
                 for folder in folders]
     return scripts
@@ -39,11 +43,12 @@ def main():
     parser.add_argument('--job-prefix', dest='job_prefix',
         default=JOB_PREFIX)
     parser.add_argument('--submit', dest='submit', action='store_true')
+    parser.add_argument('--no-analyze', dest='analyze', action='store_true')
     args = parser.parse_args()
 
-    folders = args.folderlist.read().split('\t')
+    folders = args.folderlist.readline().strip().split('\t')
     
-    jenv = Environment(loader=PackageLoader('pyavida', 'templates'))
+    jenv = Environment(loader=PackageLoader('avidarunlauncher', '../templates'))
 
     print >>sys.stderr, 'building job scripts from templates...'
     scripts = build_scripts(folders, args, jenv)

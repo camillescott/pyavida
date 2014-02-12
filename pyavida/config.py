@@ -1,6 +1,6 @@
 import os
 
-SRCDIR = os.path.abspath('config/base')
+SRCDIR = os.path.abspath('../config/base')
 
 DEF_REPLICATES=10
 
