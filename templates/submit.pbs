@@ -1,7 +1,8 @@
 #!/bin/sh -login
 
 #PBS -l {{ resources }}
-#PBS -j oe
+#PBS -e {{ folder }}/{{ jobname }}.e
+#PBS -o {{ folder }}/{{ jobname }}.o
 #PBS -N {{ jobname }}
 {% if buyin %}
 #PBS -A {{ buyin }}
