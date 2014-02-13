@@ -33,12 +33,12 @@ def mk_folders(out_dir, prefix, x, force):
             os.makedirs(p)
         except OSError as e:
             print >>sys.stderr, e, 'folder already exists', p
-        finally:
             if force:
                 print >>sys.stderr, '-f is on, replacing dir...'
                 rmtree(p)
                 os.makedirs(p)
-        folders.append(p)
+        finally:
+            folders.append(p)
     return folders
 
 def ln_configs(folders, args):
