@@ -1,5 +1,8 @@
+#!/usr/bin/env python
+
 from config import *
 
+from shutil import rmtree
 import sys
 import argparse
 import random
@@ -22,17 +25,20 @@ def chkconfig(d):
         if not os.path.isfile(fn):
             raise FileMissingError(fn)
 
-def mk_folders(out_dir, prefix, x):
+def mk_folders(out_dir, prefix, x, force):
     folders = []
     for i in xrange(x):
-        p = os.path.join(out_dir, '{p}_{i}'.format(p=prefix, i=i)) 
+        p = os.path.join(os.path.abspath(out_dir), '{p}_{i}'.format(p=prefix, i=i)) 
         try:
-            os.mkdir(p)
+            os.makedirs(p)
         except OSError as e:
             print >>sys.stderr, e, 'folder already exists', p
-            folders.append(p)
-        else:
-            folders.append(p)
+        finally:
+            if force:
+                print >>sys.stderr, '-f is on, replacing dir...'
+                rmtree(p)
+                os.makedirs(p)
+        folders.append(p)
     return folders
 
 def ln_configs(folders, args):
@@ -62,6 +68,7 @@ def main():
                         default=CONFIG_FILES['instset'])
     parser.add_argument('--exe', dest='exe',
                         default=CONFIG_FILES['exe'])
+    parser.add_argument('-f', dest='force', action='store_true')
     parser.add_argument('-x', '--replicates', dest='replicates', default=DEF_REPLICATES, type=int)
     parser.add_argument('-o', type=argparse.FileType('w'),
                         dest='outfp', default=sys.stdout)
@@ -87,14 +94,14 @@ def main():
     try:    
         chkconfig(CONFIG_FILES)
     except FileMissingError as e:
-        print >>sys.stderr, '**ERR: missing config file {e}'.format(e)
+        print >>sys.stderr, '**ERR: missing config file {e}'.format(e=e.fn)
         print >>sys.stderr, 'Exiting...'
         sys.exit()
     print >>sys.stderr, 'Config file check passed!'
     sep()
 
     print >>sys.stderr, 'Creating folders...'
-    folders = mk_folders(args.out_dir, args.prefix, args.replicates)
+    folders = mk_folders(args.out_dir, args.prefix, args.replicates, args.force)
     print >>sys.stderr, '...linking config files...'
     ln_configs(folders, args)
     print >>sys.stderr, '...done creating workspaces!'

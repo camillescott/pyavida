@@ -1,6 +1,9 @@
 import os
+import sys
 
-SRCDIR = os.path.abspath('config/base')
+PYAVIDA = os.path.abspath(os.path.dirname(sys.argv[0]))
+
+SRCDIR = os.path.join(PYAVIDA, '../config/base')
 
 DEF_REPLICATES=10
 
@@ -16,3 +19,4 @@ CONFIG_FILES = {key:os.path.join(SRCDIR,value) for key, value in CONFIG_FILES.it
 RESOURCES='walltime=12:00:00,nodes=1:ppn=1,mem=4gb'
 BUYIN='ged-intel11'
 JOB_PREFIX='genarch_'
+
