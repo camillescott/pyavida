@@ -1,0 +1,14 @@
+genarch
+-------
+
+All runs are to 100000 updates, saving population every 50 generations,
+with implicit repro and reward for ANDN. Treatments are:
+
+1. genarch_A_*
+
+* per-site on divide sub, del, ins mutations, ranging from .0015 to .0045
+* per genome max one del, ins mutations, ranging .03 to .09 (covarying with per-site)
+
+2. genarch_B_*
+
+* per genome max one sub, del, ins mutations ranging .03 to .09
