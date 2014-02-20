@@ -22,10 +22,19 @@ def parse_taskmap(fn, usecols=(4)):
         ln = fp.readline()
         ln = ln.split()[2]
         org_id = int(ln[2])
-        gen_born = int(ln[3])
+        u_born = int(ln[3])
         task_count = float(ln[-1])
     M_o = task_count - M_o
     M_o = np.clip(M_o, 0.0, task_count)
     return org_id, M_o
 
+def get_org_mat(fn, skiprows=11, 
+                cols=['u_birth','org_id','merit','eff','fitness','t_gest']):
+    '''
+    Wrapper to get a DataFrame of organism data, with the given
+    column names and rows to skip
+    '''
 
+    orgs_df = pd.read_csv(fn, header=None, names=cols, 
+                            skiprows=skiprows, dtype=np.float)
+    return orgs_df
