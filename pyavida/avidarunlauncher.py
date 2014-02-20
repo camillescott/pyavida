@@ -3,14 +3,14 @@ import argparse
 import subprocess
 import sys
 import random
+import os
 
 from config import *
 
 def build_scripts(folders, args, jenv):
     t = jenv.get_template('submit.pbs')
-    analyze = not args.analyze
     scripts = [t.render(folder=os.path.abspath(folder), buyin=args.buyin,
-                        resources=args.resources, analyze=analyze,
+                        resources=args.resources, analyze=args.analyze, run=args.run,
                         jobname=args.job_prefix+os.path.basename(folder),
                         seed=random.randint(0,9999999999999999999)) \
                 for folder in folders]
@@ -19,7 +19,12 @@ def build_scripts(folders, args, jenv):
 def write_scripts(folders, scripts):
     script_files = []
     for folder, script in zip(folders, scripts):
-        fn = os.path.join(folder, 'run_avida.pbs')
+        i=0
+        fn = os.path.join(folder, 'run_avida_{i}.pbs'.format(i=i))
+        while(os.path.isfile(fn)):
+            i += 1
+            fn = os.path.join(folder, 'run_avida_{i}.pbs'.format(i=i))
+            print >>sys.stderr, 'pbs file exists; trying {f}'.format(f=fn)
         with open(fn, 'w') as outfp:
             outfp.write(script)
             script_files.append(fn)
@@ -42,7 +47,8 @@ def main():
     parser.add_argument('--job-prefix', dest='job_prefix',
         default=JOB_PREFIX)
     parser.add_argument('--submit', dest='submit', action='store_true')
-    parser.add_argument('--no-analyze', dest='analyze', action='store_true')
+    parser.add_argument('--run', dest='run', action='store_true')
+    parser.add_argument('--analyze', dest='analyze', action='store_true')
     args = parser.parse_args()
 
     folders = args.folderlist.readline().strip().split('\t')
