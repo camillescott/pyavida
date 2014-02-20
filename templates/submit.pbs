@@ -15,4 +15,6 @@ cd {{ folder }}
 {% endif %}
 {% if analyze %}
 ./avida -a
+mkdir -p ../data
+gzip -r -c data > ../data/`basename {{ folder }}`.gz
 {% endif %}

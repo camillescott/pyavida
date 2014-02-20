@@ -1,10 +1,6 @@
-#inst_set heads_gen_arch
+#inst_set heads_default
 #hw_type 0
 
-nop-C
-nop-C
-nop-C
-nop-C
 nop-C      #
 nop-C      #
 nop-C      #
@@ -91,13 +87,4 @@ nop-C      #
 nop-C      #
 nop-C      #
 nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
-nop-C      #
+
