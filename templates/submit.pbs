@@ -15,4 +15,6 @@ cd {{ folder }}
 {% endif %}
 {% if analyze %}
 ./avida -a
+mkdir -p ../data
+tar -cvzf ../data/`basename {{ folder }}`.tar.gz data
 {% endif %}
