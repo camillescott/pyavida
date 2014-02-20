@@ -10,7 +10,9 @@
 
 cd {{ folder }}
 
+{% if run %}
 ./avida -s {{ seed }}
+{% endif %}
 {% if analyze %}
 ./avida -a
 {% endif %}

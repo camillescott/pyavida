@@ -1,0 +1,28 @@
+Config Parameters -- TEST
+-----------------
+
+1. Mutations: 
+
+* .0015 sub, ins, del per site, applied on divide
+* .03 ins, del max one per divide
+
+2. Inst: Default Heads
+
+3. Repro: Implicit Repro
+
+4. Lineages:
+
+* Create when child fitness higher than line of descent
+
+5. Events
+
+* 10000 updates
+* Log pop every 50 generations
+
+6. Tasks
+
+* Reward ANDN, max 3 execs
+
+7. Analyze
+
+* Map tasks on dominant lineage
