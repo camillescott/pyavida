@@ -12,7 +12,6 @@ def check_region(G, x, y, t=1):
 def P_m(G, N=1000, t=1, S=2):
     results = np.zeros(N)
     coding = np.where(G >= t)[0]
-    #print coding
     if len(coding) >= S:
         for i in xrange(N):
             N_s = 0.0
@@ -33,7 +32,6 @@ def random_genome(L, N_c):
     Generate a random (binary) array of length L with N_c coding instructions
     '''
     
-    #coding = np.random.randint(0, high=L, size=N_c)
     coding = np.random.choice(L, size=N_c, replace=False)
     G = np.zeros(L)
     np.put(G, coding, 1)
@@ -94,7 +92,7 @@ def E(L, N_c, N=1000, Ns=1000):
     Use N genomes, with Ns passed to the P_m function
     '''
    
-    print >>sys.stderr, 'calculating E(P_m) for L={l} Nc={nc}'.format(l=L, nc=N_c) 
+    #print >>sys.stderr, 'calculating E(P_m) for L={l} Nc={nc}'.format(l=L, nc=N_c) 
     results = np.zeros((N,2))
     for i in xrange(N):
         Rs = calc_random(L=L, N_c=N_c, N=Ns)
@@ -185,7 +183,7 @@ def calc_E_over_Nc_range(L, Lm, N_c_i, N_c_j, N=1000, Ns=1000):
     for i in xrange(N_c_i, N_c_j):
         e = E(L, i, N=N, Ns=Ns)
         results[i] = np.mean(e[:,0])
-    print >>sys.stderr, results
+    #print >>sys.stderr, results
     fn = 'E_{l}'.format(l=L) 
     np.save(fn, results)
     return fn+'.npy'
