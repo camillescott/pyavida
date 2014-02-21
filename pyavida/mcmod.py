@@ -33,7 +33,8 @@ def random_genome(L, N_c):
     Generate a random (binary) array of length L with N_c coding instructions
     '''
     
-    coding = np.random.randint(0, high=L, size=N_c)
+    #coding = np.random.randint(0, high=L, size=N_c)
+    coding = np.random.choice(L, size=N_c, replace=False)
     G = np.zeros(L)
     np.put(G, coding, 1)
     return G
@@ -92,25 +93,129 @@ def E(L, N_c, N=1000, Ns=1000):
     Get the expected P_m for a genome L, N_c. 
     Use N genomes, with Ns passed to the P_m function
     '''
-    
+   
+    print >>sys.stderr, 'calculating E(P_m) for L={l} Nc={nc}'.format(l=L, nc=N_c) 
     results = np.zeros((N,2))
     for i in xrange(N):
         Rs = calc_random(L=L, N_c=N_c, N=Ns)
         results[i,:] = Rs[:2]
     return results
 
-def calc_E_over_Nc_range(L, Lm, N_c_i, N_c_j, outfp, N=1000, Ns=1000, q=None):
-    results = np.zeros( Lm )
+
+'''
+Code for parallel map taken from http://wiki.scipy.org/Cookbook/Multithreading
+This is a very naive function embarassingly parallel code
+'''
+
+import sys
+import time
+import threading
+from itertools import izip, count
+
+def foreach(f,l,threads=3,return_=False):
+    """
+    Apply f to each element of l, in parallel
+    """
+
+    if threads>1:
+        iteratorlock = threading.Lock()
+        exceptions = []
+        if return_:
+            n = 0
+            d = {}
+            i = izip(count(),l.__iter__())
+        else:
+            i = l.__iter__()
+
+
+        def runall():
+            while True:
+                iteratorlock.acquire()
+                try:
+                    try:
+                        if exceptions:
+                            return
+                        v = i.next()
+                    finally:
+                        iteratorlock.release()
+                except StopIteration:
+                    return
+                try:
+                    if return_:
+                        n,x = v
+                        d[n] = f(x)
+                    else:
+                        f(v)
+                except:
+                    e = sys.exc_info()
+                    iteratorlock.acquire()
+                    try:
+                        exceptions.append(e)
+                    finally:
+                        iteratorlock.release()
+        
+        threadlist = [threading.Thread(target=runall) for j in xrange(threads)]
+        for t in threadlist:
+            t.start()
+        for t in threadlist:
+            t.join()
+        if exceptions:
+            a, b, c = exceptions[0]
+            raise a, b, c
+        if return_:
+            r = d.items()
+            r.sort()
+            return [v for (n,v) in r]
+    else:
+        if return_:
+            return [f(v) for v in l]
+        else:
+            for v in l:
+                f(v)
+            return
+
+
+def parallel_map(f,l,threads=3):
+    return foreach(f,l,threads=threads,return_=True)
+
+
+def calc_E_over_Nc_range(L, Lm, N_c_i, N_c_j, N=1000, Ns=1000):
+    results = np.zeros( (Lm,) )
+    print >>sys.stderr, 'calcuating E(P_m) for L={l}, Nc={Nci}-{Ncj}'.format(l=L, Nci=N_c_i, Ncj=N_c_j)
     for i in xrange(N_c_i, N_c_j):
         e = E(L, i, N=N, Ns=Ns)
-        results[i] = e[0]
-    np.savetxt(outfp, results, delimiter=' ')
-    if q:
-        q.put(L)
+        results[i] = np.mean(e[:,0])
+    print >>sys.stderr, results
+    fn = 'E_{l}'.format(l=L) 
+    np.save(fn, results)
+    return fn+'.npy'
+
+
+def calc_expected_mat(L_i, L_j, N=1000, Ns=1000, threads=2):
+    # calc E(P_m) for genomes of length L_i through L_j
+    lengths = np.arange(L_i, L_j)
+    files = parallel_map(lambda L: calc_E_over_Nc_range(L, L_j, 2, L+1, N=N, Ns=Ns), lengths, threads=threads)
+    return files
+
+
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--threads', dest='threads', type=int, default=2)
+    parser.add_argument('--iterations-per-class', dest='N', type=int, default=1000)
+    parser.add_argument('--iterations-per-org', dest='Ns', type=int, default=1000)
+    parser.add_argument('L_i', type=int)
+    parser.add_argument('L_j', type=int)
+    args = parser.parse_args()
     
+    files = calc_expected_mat(args.L_i, args.L_j, N=args.N, Ns=args.Ns, threads=args.threads)
 
-import Queue
-import threading
-
-def calc_expected_mat(L_i, L_j, N=1000, Ns=1000):
-   pass 
+    results = []
+    for f in files:
+        results.append(np.load(f))
+    results = np.array(results)
+    np.savetxt('E_{s}_{e}.mat.csv'.format(s=args.L_i, e=args.L_j), results, delimiter=',')
+        
+if __name__ == '__main__':
+    main()
