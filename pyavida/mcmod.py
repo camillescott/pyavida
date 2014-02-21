@@ -180,6 +180,7 @@ def calc_E_over_Nc_range(L, Lm, N_c_i, N_c_j, N=1000, Ns=1000):
     results = np.zeros( (Lm,) )
     print >>sys.stderr, 'calcuating E(P_m) for L={l}, Nc={Nci}-{Ncj}'.format(l=L, Nci=N_c_i, Ncj=N_c_j)
     for i in xrange(N_c_i, N_c_j):
+        print >>sys.stderr, '...working on Nc={nc}'.format(nc=i)
         e = E(L, i, N=N, Ns=Ns)
         results[i] = np.mean(e[:,0])
     #print >>sys.stderr, results
