@@ -24,7 +24,7 @@ def parse_taskmap(fn, usecols=[4]):
         ln = ln.split()
         org_id = int(ln[2])
         u_born = int(ln[3])
-        task_count = float(ln[-1])
+        task_count = float(ln[usecols[0]])
     #print task_count
     M_o = task_count - M_o
     M_o = np.clip(M_o, 0.0, task_count)
