@@ -1,5 +1,4 @@
 import scipy as sp
-import pandas as pd
 import numpy as np
 
 def check_region(G, x, y, t=1):
