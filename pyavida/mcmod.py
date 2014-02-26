@@ -1,5 +1,6 @@
-import scipy as sp
+#import scipy as sp
 import numpy as np
+import os
 
 def check_region(G, x, y, t=1):
     for i in xrange(x,y):
@@ -203,17 +204,37 @@ def main():
     parser.add_argument('-t', '--threads', dest='threads', type=int, default=2)
     parser.add_argument('--iterations-per-class', dest='N', type=int, default=1000)
     parser.add_argument('--iterations-per-org', dest='Ns', type=int, default=1000)
+    parser.add_argument('--load', dest='load')
+    parser.add_argument('--load-from', dest='folder')
     parser.add_argument('L_i', type=int)
     parser.add_argument('L_j', type=int)
     args = parser.parse_args()
     
-    files = calc_expected_mat(args.L_i, args.L_j, N=args.N, Ns=args.Ns, threads=args.threads)
 
-    results = []
-    for f in files:
-        results.append(np.load(f))
-    results = np.array(results)
-    np.savetxt('E_{s}_{e}.mat.csv'.format(s=args.L_i, e=args.L_j), results, delimiter=',')
+    if args.load:
+        nums = eval(args.load)
+        assert type(nums) == list
+        pairs = [(nums[i-1],nums[i]) for i in range(1,len(nums))]
+        files = []
+        for i,j in pairs:
+            files.append('E_{i}_{j}.mat.csv'.format(i=i,j=j))
+        files = map(lambda f: os.path.join('E_Pm', f), files)
+        files.sort(key=lambda s: s.split('_')[1])
+        
+        mat = np.zeros( (max(nums),max(nums)) )
+        for file,(i,j) in zip(files,pairs):
+            mat_ij = np.loadtxt(file, delimiter=',')
+            mat[i:j,:j] = mat_ij
+        np.savetxt('E_{i}_{j}.mat.csv'.format(i=min(nums),j=max(nums)), mat, delimiter=',')
+     
+    else:
+        files = calc_expected_mat(args.L_i, args.L_j, N=args.N, Ns=args.Ns, threads=args.threads)
+
+        results = []
+        for f in files:
+            results.append(np.load(f))
+        results = np.array(results)
+        np.savetxt('E_{s}_{e}.mat.csv'.format(s=args.L_i, e=args.L_j), results, delimiter=',')
         
 if __name__ == '__main__':
     main()
