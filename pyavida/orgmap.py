@@ -39,6 +39,5 @@ def get_org_mat(fn, skiprows=11,
     '''
     print >>sys.stderr, 'loading {fn}...'.format(fn=fn)
     orgs_df = pd.read_csv(fn, header=None, names=cols, delimiter=' ',
-                            skiprows=skiprows, dtype=np.float64,
-                            usecols=range(0,6))
+                            skiprows=skiprows, usecols=range(0,6))
     return orgs_df

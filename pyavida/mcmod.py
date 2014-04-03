@@ -3,7 +3,6 @@ import numpy as np
 import os
 import sys
 import orgmap
-import tarfile
 
 def check_region(G, x, y, t=1):
     for i in xrange(x,y):
@@ -176,30 +175,28 @@ class LambdaHandler:
                     out_fp.write('{l}, {nc}, {e}\n'.format(l=L, nc=Nc, e=self.exp_lambdas[L][Nc]))   
 
 
-def process_lambda(org_id, tar_reader, lh):
-    fp = tar_reader.extractfile('data/dom_lineage/tasksites.org-{i}.dat'.format(i=org_id))
-    _, taskmap = orgmap.parse_taskmap(fp)
+def process_lambda(org_id, datadir, lh):
+    fn = os.path.join(datadir, 'data/dom_lineage/tasksites.org-{i}.dat'.format(i=org_id))
+    _, taskmap = orgmap.parse_taskmap(fn)
     lam, L, Nc = lh.Lambda(taskmap)
     return lam, L, Nc
 
 
-def process_run(tar, lh):
-    with tarfile.open(tar) as tar_reader:
-        fp = tar_reader.extractfile('data/dom_lineage_orgs.dat')
-        #fn = os.path.join(datadir, 'dom_lineage_orgs.dat')
-        df = orgmap.get_org_mat(fp)
-        print df
-        df['Lambda'] = float('NaN')
-        df['length'] = float('NaN')
-        df['Nc'] = float('NaN')
-        for i in xrange(1, len(df)):
-            if i % 100 == 0:
-                print 'processed {} orgs...'.format(i)
-            lam, L, Nc = process_lambda(int(df.ix[i,1]), tar_reader, lh)
-            df.ix[i,'Lambda'] = lam
-            df.ix[i, 'length'] = L
-            df.ix[i, 'Nc'] = Nc
-        df = df.ix[1:]
+def process_run(datadir, lh):
+    fn = os.path.join(datadir, 'data/dom_lineage_orgs.dat')
+    df = orgmap.get_org_mat(fn)
+    print df
+    df['Lambda'] = float('NaN')
+    df['length'] = float('NaN')
+    df['Nc'] = float('NaN')
+    for i in xrange(1, len(df)):
+        if i % 100 == 0:
+            print 'processed {} orgs...'.format(i)
+        lam, L, Nc = process_lambda(int(df.ix[i,1]), datadir, lh)
+        df.ix[i,'Lambda'] = lam
+        df.ix[i, 'length'] = L
+        df.ix[i, 'Nc'] = Nc
+    df = df.ix[1:]
     print df
     return df
 
@@ -209,10 +206,10 @@ def handle_process_runs(args):
         lh = LambdaHandler.load(args.load_exp, Ng=args.Ng, Ns=args.Ns)
     else:
         lh = LambdaHandler(Ng=args.Ng, Ns=args.Ns)
-    for tar in args.tarfiles:
-        print >>sys.stderr, 'processing', tar
-        df = process_run(tar, lh)
-        outname = args.prefix + '_' + os.path.basename(tar) + '.dat'
+    for datadir in args.datadirs:
+        print >>sys.stderr, 'processing', datadir
+        df = process_run(datadir, lh)
+        outname = args.prefix + '_' + os.path.basename(datadir) + '.dat'
         outfn = os.path.join(args.outdir, outname)
         print outname
         print >>sys.stderr, 'saving processed results to', outfn
@@ -228,7 +225,7 @@ def main():
     parser.add_argument('--iterations-per-org', dest='Ns', type=int, default=1000)
     parser.add_argument('--load-exp-from', dest='load_exp')
     parser.add_argument('--save-exp-to', dest='save_exp')
-    parser.add_argument('--tarfiles', nargs='+')
+    parser.add_argument('--datadirs', nargs='+')
     parser.add_argument('--outdir', default='')
     parser.add_argument('--prefix', default='lambda')
     args = parser.parse_args()
