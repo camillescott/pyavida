@@ -1,6 +1,9 @@
 #import scipy as sp
 import numpy as np
 import os
+import sys
+import orgmap
+import tarfile
 
 def check_region(G, x, y, t=1):
     for i in xrange(x,y):
@@ -11,7 +14,7 @@ def check_region(G, x, y, t=1):
 
 def P_m(G, N=1000, t=1, S=2):
     results = np.zeros(N)
-    coding = np.where(G == t)[0]
+    coding = np.where(G >= t)[0]
     if len(coding) >= S:
         for i in xrange(N):
             N_s = 0.0
@@ -127,7 +130,7 @@ class LambdaHandler:
         self.exp_lambdas = {}
 
     @classmethod
-    def load(cls, fn, Ng=1000, Ns=1000):
+    def load(cls, fn, Ng=100, Ns=1000):
         newlh = cls(Ng=Ng, Ns=Ns)
         with open(fn, 'rb') as in_fp:
             in_fp.next()
@@ -136,94 +139,101 @@ class LambdaHandler:
                 L = int(vals[0].strip())
                 Nc = int(vals[1].strip())
                 e = np.float(vals[2].strip())
+                print L, Nc, e
+                if L not in newlh.exp_lambdas:
+                    newlh.exp_lambdas[L] = {}
                 newlh.exp_lambdas[L][Nc] = e
         return newlh
 
-    def get_expected(L, Nc):
+    def get_expected(self, L, Nc):
         if L in self.exp_lambdas and Nc in self.exp_lambdas[L]:
             return self.exp_lambdas[L][Nc]
         else:
-            exp_l = E(L, Nc, N=self.Ng, Ns=self.Ns)
+            result = E(L, Nc, N=self.Ng, Ns=self.Ns)
+            exp_l = np.mean(result[:,0])
+            print >>sys.stderr, '...calculated expected for', L, Nc, exp_l
+            if L not in self.exp_lambdas:
+                self.exp_lambdas[L] = {}
             self.exp_lambdas[L][Nc] = exp_l
             return exp_l
 
-    def Lambda(G, N=1000, t=1, S=2):
+    def Lambda(self, G, N=1000, t=1, S=2):
         result = P_m(G, N=N, t=t, S=S)
         mu = result[0]
         Nc = len(np.where(G >= t)[0])
         L = len(G)
-        expected = self.get_expected(Nc, L)
-        return (-2.0 * np.log(expected) + 2.0 * np.log(mu))
+        if Nc == 0:
+            return float('NaN'), L, Nc
+        expected = self.get_expected(L, Nc)
+        return -2.0 * np.log(expected/mu), L, Nc
 
-    def save(fn):
+    def save(self, fn):
         print >>sys.stderr, 'saving expected Pm to', fn
         with open(fn, 'wb') as out_fp:
             out_fp.write('L, Nc, E\n')
             for L in self.exp_lambdas:
                 for Nc in self.exp_lambdas[L]:
-                    out_fp.write('{l}, {nc}, {e}\n'.format(l=L, nc=Nc, e=self.exp_lambdas[L][Nc]))
+                    out_fp.write('{l}, {nc}, {e}\n'.format(l=L, nc=Nc, e=self.exp_lambdas[L][Nc]))   
 
-import orgmap
 
-def process_lambda(X, d, lh):
-    org_id = int(X[1])
-    fn = os.path.join(d, 'dom_lineage/tasksites.org-{i}.dat'.format(i=org_id))
-    _, taskmap = orgmap.parse_taskmap(fn)
-    l = lh.Lambda(taskmap)
-    return l
+def process_lambda(org_id, tar_reader, lh):
+    fp = tar_reader.extractfile('data/dom_lineage/tasksites.org-{i}.dat'.format(i=org_id))
+    _, taskmap = orgmap.parse_taskmap(fp)
+    lam, L, Nc = lh.Lambda(taskmap)
+    return lam, L, Nc
 
-def process_run(datadir, lh):
-    fn = os.path.join(datadir, 'dom_lineage_orgs.dat')
-    df = orgmap.get_org_mat(fn)
-    L_d = df[df.u_birth > 0].apply(process_lambda, axis=1, raw=True, args=(datadir,lh))   
-    df.insert(6, 'Lambda', L_d)
+
+def process_run(tar, lh):
+    with tarfile.open(tar) as tar_reader:
+        fp = tar_reader.extractfile('data/dom_lineage_orgs.dat')
+        #fn = os.path.join(datadir, 'dom_lineage_orgs.dat')
+        df = orgmap.get_org_mat(fp)
+        print df
+        df['Lambda'] = float('NaN')
+        df['length'] = float('NaN')
+        df['Nc'] = float('NaN')
+        for i in xrange(1, len(df)):
+            if i % 100 == 0:
+                print 'processed {} orgs...'.format(i)
+            lam, L, Nc = process_lambda(int(df.ix[i,1]), tar_reader, lh)
+            df.ix[i,'Lambda'] = lam
+            df.ix[i, 'length'] = L
+            df.ix[i, 'Nc'] = Nc
+        df = df.ix[1:]
+    print df
     return df
 
-def handle_calc_M_exp(args):
-
-    if args.load:
-        nums = eval(args.load)
-        assert type(nums) == list
-        pairs = [(nums[i-1],nums[i]) for i in range(1,len(nums))]
-        files = []
-        for i,j in pairs:
-            files.append('E_{i}_{j}.mat.csv'.format(i=i,j=j))
-        files = map(lambda f: os.path.join('E_Pm', f), files)
-        files.sort(key=lambda s: s.split('_')[1])
-        
-        mat = np.zeros( (max(nums),max(nums)) )
-        for file,(i,j) in zip(files,pairs):
-            mat_ij = np.loadtxt(file, delimiter=',')
-            mat[i:j,:j] = mat_ij
-        np.savetxt('E_{i}_{j}.mat.csv'.format(i=min(nums),j=max(nums)), mat, delimiter=',')
-     
-    else:
-        files = calc_expected_mat(args.L_i, args.L_j, N=args.N, Ns=args.Ns, threads=args.threads)
-
-        results = []
-        for f in files:
-            results.append(np.load(f))
-        results = np.array(results)
-        np.savetxt('E_{s}_{e}.mat.csv'.format(s=args.L_i, e=args.L_j), results, delimiter=',')
 
 def handle_process_runs(args):
-    for datadir in args.datadirs:
-        pass 
+    if args.load_exp:
+        lh = LambdaHandler.load(args.load_exp, Ng=args.Ng, Ns=args.Ns)
+    else:
+        lh = LambdaHandler(Ng=args.Ng, Ns=args.Ns)
+    for tar in args.tarfiles:
+        print >>sys.stderr, 'processing', tar
+        df = process_run(tar, lh)
+        outname = args.prefix + '_' + os.path.basename(tar) + '.dat'
+        outfn = os.path.join(args.outdir, outname)
+        print outname
+        print >>sys.stderr, 'saving processed results to', outfn
+        df.to_csv(outfn, na_rep='NaN', index=False)
+        if args.save_exp:
+            lh.save(args.save_exp)
 
 import argparse
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--threads', dest='threads', type=int, default=2)
-    parser.add_argument('--iterations-per-class', dest='N', type=int, default=1000)
+    parser.add_argument('--iterations-per-class', dest='Ng', type=int, default=1000)
     parser.add_argument('--iterations-per-org', dest='Ns', type=int, default=1000)
-    parser.add_argument('--load', dest='load')
-    parser.add_argument('--load-from', dest='folder')
-    parser.add_argument('L_i', type=int)
-    parser.add_argument('L_j', type=int)
+    parser.add_argument('--load-exp-from', dest='load_exp')
+    parser.add_argument('--save-exp-to', dest='save_exp')
+    parser.add_argument('--tarfiles', nargs='+')
+    parser.add_argument('--outdir', default='')
+    parser.add_argument('--prefix', default='lambda')
     args = parser.parse_args()
     
-
+    handle_process_runs(args)
         
 if __name__ == '__main__':
     main()
