@@ -11,7 +11,7 @@ def check_region(G, x, y, t=1):
 
 def P_m(G, N=1000, t=1, S=2):
     results = np.zeros(N)
-    coding = np.where(G >= t)[0]
+    coding = np.where(G == t)[0]
     if len(coding) >= S:
         for i in xrange(N):
             N_s = 0.0
@@ -86,6 +86,7 @@ def calc_random(L, N_c, N=1000):
     return P_m(G, N=N)
 
 
+
 def E(L, N_c, N=1000, Ns=1000):
     '''
     Get the expected P_m for a genome L, N_c. 
@@ -98,84 +99,6 @@ def E(L, N_c, N=1000, Ns=1000):
         Rs = calc_random(L=L, N_c=N_c, N=Ns)
         results[i,:] = Rs[:2]
     return results
-
-
-'''
-Code for parallel map taken from http://wiki.scipy.org/Cookbook/Multithreading
-This is a very naive function embarassingly parallel code
-'''
-
-import sys
-import time
-import threading
-from itertools import izip, count
-
-def foreach(f,l,threads=3,return_=False):
-    """
-    Apply f to each element of l, in parallel
-    """
-
-    if threads>1:
-        iteratorlock = threading.Lock()
-        exceptions = []
-        if return_:
-            n = 0
-            d = {}
-            i = izip(count(),l.__iter__())
-        else:
-            i = l.__iter__()
-
-
-        def runall():
-            while True:
-                iteratorlock.acquire()
-                try:
-                    try:
-                        if exceptions:
-                            return
-                        v = i.next()
-                    finally:
-                        iteratorlock.release()
-                except StopIteration:
-                    return
-                try:
-                    if return_:
-                        n,x = v
-                        d[n] = f(x)
-                    else:
-                        f(v)
-                except:
-                    e = sys.exc_info()
-                    iteratorlock.acquire()
-                    try:
-                        exceptions.append(e)
-                    finally:
-                        iteratorlock.release()
-        
-        threadlist = [threading.Thread(target=runall) for j in xrange(threads)]
-        for t in threadlist:
-            t.start()
-        for t in threadlist:
-            t.join()
-        if exceptions:
-            a, b, c = exceptions[0]
-            raise a, b, c
-        if return_:
-            r = d.items()
-            r.sort()
-            return [v for (n,v) in r]
-    else:
-        if return_:
-            return [f(v) for v in l]
-        else:
-            for v in l:
-                f(v)
-            return
-
-
-def parallel_map(f,l,threads=3):
-    return foreach(f,l,threads=threads,return_=True)
-
 
 def calc_E_over_Nc_range(L, Lm, N_c_i, N_c_j, N=1000, Ns=1000):
     results = np.zeros( (Lm,) )
@@ -196,20 +119,67 @@ def calc_expected_mat(L_i, L_j, N=1000, Ns=1000, threads=2):
     files = parallel_map(lambda L: calc_E_over_Nc_range(L, L_j, 2, L+1, N=N, Ns=Ns), lengths, threads=threads)
     return files
 
-
-import argparse
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--threads', dest='threads', type=int, default=2)
-    parser.add_argument('--iterations-per-class', dest='N', type=int, default=1000)
-    parser.add_argument('--iterations-per-org', dest='Ns', type=int, default=1000)
-    parser.add_argument('--load', dest='load')
-    parser.add_argument('--load-from', dest='folder')
-    parser.add_argument('L_i', type=int)
-    parser.add_argument('L_j', type=int)
-    args = parser.parse_args()
+class LambdaHandler:
     
+    def __init__(self, Ng=1000, Ns=1000):
+        self.Ng = Ng
+        self.Ns = Ns
+        self.exp_lambdas = {}
+
+    @classmethod
+    def load(cls, fn, Ng=1000, Ns=1000):
+        newlh = cls(Ng=Ng, Ns=Ns)
+        with open(fn, 'rb') as in_fp:
+            in_fp.next()
+            for line in in_fp:
+                vals = line.split(',')
+                L = int(vals[0].strip())
+                Nc = int(vals[1].strip())
+                e = np.float(vals[2].strip())
+                newlh.exp_lambdas[L][Nc] = e
+        return newlh
+
+    def get_expected(L, Nc):
+        if L in self.exp_lambdas and Nc in self.exp_lambdas[L]:
+            return self.exp_lambdas[L][Nc]
+        else:
+            exp_l = E(L, Nc, N=self.Ng, Ns=self.Ns)
+            self.exp_lambdas[L][Nc] = exp_l
+            return exp_l
+
+    def Lambda(G, N=1000, t=1, S=2):
+        result = P_m(G, N=N, t=t, S=S)
+        mu = result[0]
+        Nc = len(np.where(G >= t)[0])
+        L = len(G)
+        expected = self.get_expected(Nc, L)
+        return (-2.0 * np.log(expected) + 2.0 * np.log(mu))
+
+    def save(fn):
+        print >>sys.stderr, 'saving expected Pm to', fn
+        with open(fn, 'wb') as out_fp:
+            out_fp.write('L, Nc, E\n')
+            for L in self.exp_lambdas:
+                for Nc in self.exp_lambdas[L]:
+                    out_fp.write('{l}, {nc}, {e}\n'.format(l=L, nc=Nc, e=self.exp_lambdas[L][Nc]))
+
+import orgmap
+
+def process_lambda(X, d, lh):
+    org_id = int(X[1])
+    fn = os.path.join(d, 'dom_lineage/tasksites.org-{i}.dat'.format(i=org_id))
+    _, taskmap = orgmap.parse_taskmap(fn)
+    l = lh.Lambda(taskmap)
+    return l
+
+def process_run(datadir, lh):
+    fn = os.path.join(datadir, 'dom_lineage_orgs.dat')
+    df = orgmap.get_org_mat(fn)
+    L_d = df[df.u_birth > 0].apply(process_lambda, axis=1, raw=True, args=(datadir,lh))   
+    df.insert(6, 'Lambda', L_d)
+    return df
+
+def handle_calc_M_exp(args):
 
     if args.load:
         nums = eval(args.load)
@@ -235,6 +205,25 @@ def main():
             results.append(np.load(f))
         results = np.array(results)
         np.savetxt('E_{s}_{e}.mat.csv'.format(s=args.L_i, e=args.L_j), results, delimiter=',')
+
+def handle_process_runs(args):
+    for datadir in args.datadirs:
+        pass 
+
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--threads', dest='threads', type=int, default=2)
+    parser.add_argument('--iterations-per-class', dest='N', type=int, default=1000)
+    parser.add_argument('--iterations-per-org', dest='Ns', type=int, default=1000)
+    parser.add_argument('--load', dest='load')
+    parser.add_argument('--load-from', dest='folder')
+    parser.add_argument('L_i', type=int)
+    parser.add_argument('L_j', type=int)
+    args = parser.parse_args()
+    
+
         
 if __name__ == '__main__':
     main()
